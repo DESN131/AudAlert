@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import random
 import logging
 from typing import Dict, List, Optional
 
@@ -42,7 +43,9 @@ def load_config() -> Dict[str, object]:
     tg_bot_token = os.getenv("TG_BOT_TOKEN", "").strip()
     tg_chat_id = os.getenv("TG_CHAT_ID", "").strip()
     alert_prices_raw = os.getenv("ALERT_PRICES", "").strip()
-    check_interval = int(os.getenv("CHECK_INTERVAL_SECONDS", "60"))
+    min_interval_raw = os.getenv("CHECK_INTERVAL_MIN_SECONDS", "").strip()
+    max_interval_raw = os.getenv("CHECK_INTERVAL_MAX_SECONDS", "").strip()
+    fixed_interval_raw = os.getenv("CHECK_INTERVAL_SECONDS", "").strip()
 
     if not tg_bot_token:
         raise ValueError("TG_BOT_TOKEN 未配置")
@@ -51,11 +54,25 @@ def load_config() -> Dict[str, object]:
 
     alert_prices = parse_alert_prices(alert_prices_raw)
 
+    if min_interval_raw and max_interval_raw:
+        min_interval = int(min_interval_raw)
+        max_interval = int(max_interval_raw)
+    else:
+        fixed_interval = int(fixed_interval_raw or "60")
+        min_interval = fixed_interval
+        max_interval = fixed_interval
+
+    if min_interval <= 0 or max_interval <= 0:
+        raise ValueError("轮询间隔必须大于 0")
+    if min_interval > max_interval:
+        raise ValueError("CHECK_INTERVAL_MIN_SECONDS 不能大于 CHECK_INTERVAL_MAX_SECONDS")
+
     return {
         "tg_bot_token": tg_bot_token,
         "tg_chat_id": tg_chat_id,
         "alert_prices": alert_prices,
-        "check_interval": check_interval,
+        "check_interval_min": min_interval,
+        "check_interval_max": max_interval,
     }
 
 
@@ -131,11 +148,17 @@ def monitor() -> None:
     token = str(cfg["tg_bot_token"])
     chat_id = str(cfg["tg_chat_id"])
     alert_prices = list(cfg["alert_prices"])
-    check_interval = int(cfg["check_interval"])
+    check_interval_min = int(cfg["check_interval_min"])
+    check_interval_max = int(cfg["check_interval_max"])
 
     notified: Dict[float, bool] = {price: False for price in alert_prices}
 
-    logging.info("监控已启动，提醒价: %s，间隔: %ss", alert_prices, check_interval)
+    logging.info(
+        "监控已启动，提醒价: %s，间隔区间: %s~%ss",
+        alert_prices,
+        check_interval_min,
+        check_interval_max,
+    )
 
     while True:
         try:
@@ -162,7 +185,9 @@ def monitor() -> None:
         except Exception as exc:
             logging.exception("监控循环异常: %s", exc)
 
-        time.sleep(check_interval)
+        sleep_seconds = random.uniform(check_interval_min, check_interval_max)
+        logging.info("下次检查等待: %.2fs", sleep_seconds)
+        time.sleep(sleep_seconds)
 
 
 if __name__ == "__main__":

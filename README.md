@@ -17,10 +17,13 @@ cp .env.example .env
 TG_BOT_TOKEN=你的_bot_token
 TG_CHAT_ID=你的_chat_id
 ALERT_PRICES=4.55,4.50,4.45
-CHECK_INTERVAL_SECONDS=60
+CHECK_INTERVAL_MIN_SECONDS=45
+CHECK_INTERVAL_MAX_SECONDS=90
 ```
 
 - `ALERT_PRICES` 支持多个价格，英文逗号分隔。
+- 检查间隔为随机区间，范围由 `CHECK_INTERVAL_MIN_SECONDS` 和 `CHECK_INTERVAL_MAX_SECONDS` 控制。
+- 如使用固定间隔，也可只设置 `CHECK_INTERVAL_SECONDS` 作为固定间隔。
 - 逻辑为“当前价 < 阈值”触发提醒。
 - 同一阈值触发后不会重复提醒，直到价格重新回到该阈值上方后才会再次触发。
 
