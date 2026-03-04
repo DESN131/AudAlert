@@ -1,0 +1,7 @@
+services:
+  aud-alert:
+    build: .
+    container_name: aud-alert
+    restart: unless-stopped
+    env_file:
+      - .env
